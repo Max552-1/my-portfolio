@@ -1,7 +1,7 @@
-/node_modules
-/vendor
-/my-portfolio.zip
-/eCommerce
-.env
 .git
 .github
+.env
+.env.*
+vendor
+node_modules
+storage/logs/*

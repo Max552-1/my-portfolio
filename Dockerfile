@@ -1,46 +1,37 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.3-apache
 
-# Install system dependencies
-RUN apk add --no-cache \
-    nginx \
-    nodejs \
-    npm \
-    sqlite \
-    sqlite-dev \
-    libpng-dev \
-    libxml2-dev \
-    libzip-dev \
-    oniguruma-dev \
-    zip \
+RUN apt-get update && apt-get install -y \
+    git \
     unzip \
-    curl
+    libzip-dev \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libsqlite3-dev \
+    && docker-php-ext-install \
+    pdo \
+    pdo_sqlite \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip \
+    && a2enmod rewrite
 
-# Install PHP extensions
-RUN docker-php-ext-install pdo pdo_sqlite mbstring exif pcntl bcmath gd zip
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+WORKDIR /var/www/html
 
-# Set working directory
-WORKDIR /var/www
-
-# Copy project files
 COPY . .
 
-# Install Composer dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --no-dev --optimize-autoloader
 
-# Install Node dependencies and build assets
-RUN npm install && npm run build
+RUN sed -i 's!/var/www/html!/var/www/html/public!g' /etc/apache2/sites-available/000-default.conf
 
-# Setup SQLite database file if not exists
-RUN touch database/database.sqlite \
-    && chmod -R 775 storage bootstrap/cache database
+RUN chown -R www-data:www-data /var/www/html/storage \
+    /var/www/html/bootstrap/cache
 
-# Copy entrypoint script
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+EXPOSE 80
 
-EXPOSE 8080
-
-CMD ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
